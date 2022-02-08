@@ -1,5 +1,5 @@
 from preprocess.data_builder import BertDatabuilder
-from utils.utils import load_json
+from utils.utils import load_json, ria_parser
 import time
 import argparse
 import os
@@ -10,6 +10,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torchnlp.random import set_seed
+from preprocess.paraller_builder import build_bert_json
 
 
 def main(hparams, data):
@@ -65,13 +66,7 @@ def main(hparams, data):
 
 if __name__ == "__main__":
 
-    start = time.time()
-    json_data = load_json("/home/anton/summary-py/data/main_json.json")
-    json_data = json_data[:1005]
-    end = time.time()
-    bert_data = BertDatabuilder()
-    prepared_data = bert_data.preprocess(json_data)
-    print(end - start)
+
     parser = argparse.ArgumentParser(
         description="Minimalist Transformer Classifier", add_help=True,
     )
@@ -130,7 +125,8 @@ if __name__ == "__main__":
             "doing a backwards pass."
         ),
     )
-
+    parser.add_argument("--use_ria", type=bool, default=True, help="Use interval")
+    parser.add_argument("--block_trigram", type=bool, default=True, help="Use interval")
     # gpu args
     parser.add_argument("--gpus", type=int, default=1, help="How many gpus")
     # Data Loader
@@ -178,5 +174,9 @@ if __name__ == "__main__":
     )
 
     hparams = parser.parse_args()
-
+    if hparams.use_ria:
+        ria_list = ria_parser("/home/anton/summary-py/data/ria_1k.json")
+        json_data = build_bert_json(ria_list)
+    bert_data = BertDatabuilder()
+    prepared_data = bert_data.preprocess(json_data)
     main(hparams, prepared_data)
