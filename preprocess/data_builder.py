@@ -76,14 +76,16 @@ class BertDatabuilder(object):
         for d in data:
             src, tgt = d["src"], d["tgt"]
 
-            src_txt = [
-                self.cls_token + " " + " ".join(sent) + " " + self.sep_token
-                for sent in src
-            ]
-            text = " ".join(src_txt)
+            src_txt = [" ".join(sent) for sent in src]
+            text = " ".join(
+                [
+                    self.cls_token + " " + " ".join(sent) + " " + self.sep_token
+                    for sent in src
+                ]
+            )
 
             src_subtokens = self.tokenizer.tokenize(text)
-            
+
             src_subtoken_idxs = self.tokenizer.convert_tokens_to_ids(src_subtokens)
 
             segments_ids = self.get_segments(src_subtoken_idxs)
