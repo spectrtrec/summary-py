@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import bisect
 import pytorch_lightning as pl
 import numpy as np
 import torch
@@ -8,7 +7,8 @@ from torch import optim
 from transformers import BertConfig, BertModel
 from typing import Any, Dict, List, Union, Tuple
 from models.data_loader import DataModule
-
+from utils.utils import block_tri
+from torchmetrics.text.rouge import ROUGEScore
 
 class Bert(nn.Module):
     def __init__(self, large, temp_dir, finetune=False):
@@ -39,6 +39,7 @@ class ExtractiveModel(pl.LightningModule):
         super(ExtractiveModel, self).__init__()
         self.hparams = args
         self.data = DataModule(self.hparams, data, data)
+        self.rouge = ROUGEScore()
         self.__build_model()
         self.__build_loss()
 
@@ -136,28 +137,34 @@ class ExtractiveModel(pl.LightningModule):
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss_val = loss_val.unsqueeze(0)
 
-        output = OrderedDict({"val_loss": loss_val})
-        self.translate(model_out, mask, batch["src_txt"], batch["tgt_txt"])
+        rouge = self.translate(model_out, mask, batch["src_txt"], batch["tgt_txt"])
+        output = OrderedDict({"val_loss": loss_val, "rouge": rouge})
+
         return output
 
     def validation_epoch_end(
         self, outputs: Dict[str, torch.Tensor]
     ) -> Dict[str, Union[int, float]]:
 
-        val_loss_mean = 0
+        val_loss_mean, rouge1_fmeaser = 0, 0
         for output in outputs:
             val_loss = output["val_loss"]
+            rouge_f = output["rouge"]['rouge1_fmeasure']
             if self.trainer.use_dp or self.trainer.use_ddp2:
                 val_loss = torch.mean(val_loss)
             val_loss_mean += val_loss
+            rouge1_fmeaser += rouge_f.item()
 
         val_loss_mean /= len(outputs)
+        rouge1_fmeaser /= len(outputs)
         tqdm_dict = {
             "val_loss_mean": val_loss_mean,
+            "rouge1_fmeaser": rouge1_fmeaser
         }
         result = OrderedDict(
             {
                 "val_loss_mean": val_loss_mean,
+                "rouge1_fmeaser": rouge1_fmeaser,
                 "progress_bar": tqdm_dict,
                 "log": tqdm_dict,
             }
@@ -178,8 +185,7 @@ class ExtractiveModel(pl.LightningModule):
         sent_scores = (sent_scores + mask.float()).cpu().data.numpy()
         selected_ids = np.argsort(-sent_scores, 1)
 
-        gold = []
-        pred = []
+        gold, pred = [], []
         for i, _ in enumerate(selected_ids):
             _pred = []
             if len(src_str[i]) == 0:
@@ -188,11 +194,16 @@ class ExtractiveModel(pl.LightningModule):
                 if j >= len(src_str[i]):
                     continue
                 candidate = src_str[i][j].strip()
-                _pred.append(candidate)
+                if (self.hparams.block_trigram):
+                    if (not block_tri(candidate, _pred)):
+                        _pred.append(candidate)
+                else:
+                    _pred.append(candidate)
 
+                if (len(_pred) == 3):
+                    break
             _pred = "<q>".join(_pred)
-
             pred.append(_pred)
             gold.append(tgt_str[i])
 
-        return None
+        return self.rouge(pred, gold)
