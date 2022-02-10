@@ -2,41 +2,19 @@ from collections import OrderedDict
 import pytorch_lightning as pl
 import numpy as np
 import torch
-import torch.nn as nn
 from torch import optim
-from transformers import BertConfig, BertModel
-from typing import Any, Dict, List, Union, Tuple
+from typing import Dict, List, Union
 from models.data_loader import DataModule
+from models.encoder import ExtSummarizer
 from utils.utils import block_tri
 from torchmetrics.text.rouge import ROUGEScore
 
-class Bert(nn.Module):
-    def __init__(self, large, temp_dir, finetune=False):
-        super(Bert, self).__init__()
-        if large:
-            self.model = BertModel.from_pretrained(
-                "bert-large-uncased", cache_dir=temp_dir
-            )
-        else:
-            self.model = BertModel.from_pretrained(
-                "bert-base-uncased", cache_dir=temp_dir
-            )
-
-        self.finetune = finetune
-
-    def forward(self, x, segs, mask) -> torch.Tensor:
-        if self.finetune:
-            top_vec, _ = self.model(x, segs, attention_mask=mask)
-        else:
-            self.eval()
-            with torch.no_grad():
-                top_vec, _ = self.model(x, segs, attention_mask=mask)
-        return top_vec
 
 
-class ExtractiveModel(pl.LightningModule):
+
+class ExtractiveTrainer(pl.LightningModule):
     def __init__(self, args, data) -> None:
-        super(ExtractiveModel, self).__init__()
+        super(ExtractiveTrainer, self).__init__()
         self.hparams = args
         self.data = DataModule(self.hparams, data, data)
         self.rouge = ROUGEScore()
@@ -44,32 +22,10 @@ class ExtractiveModel(pl.LightningModule):
         self.__build_loss()
 
     def __build_model(self) -> None:
-        bert_config = BertConfig.from_pretrained(
-            self.hparams.pretrained_model_name,
-            hidden_size=self.hparams.ext_hidden_size,
-            num_hidden_layers=self.hparams.ext_layers,
-            num_attention_heads=self.hparams.ext_heads,
-            intermediate_size=self.hparams.ext_ff_size,
-        )
-        self.bert = BertModel.from_pretrained(
-            self.hparams.pretrained_model_name, config=bert_config
-        )
-        self.linear1 = nn.Linear(bert_config.hidden_size, 1)
-        self.sigmoid = nn.Sigmoid()
+        self.model = ExtSummarizer(self.hparams)
 
     def __build_loss(self) -> None:
         self.__loss = torch.nn.BCELoss(reduction="none")
-
-    def forward(
-        self, src, segs, clss, mask_src, mask_cls
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        top_vec = self.bert(src, attention_mask=mask_src, token_type_ids=segs)[0]
-        sents_vec = top_vec[torch.arange(top_vec.size(0)).unsqueeze(1), clss]
-        sents_vec = sents_vec * mask_cls[:, :, None].float()
-        h = self.linear1(sents_vec).squeeze(-1)
-        sent_scores = self.sigmoid(h) * mask_cls.float()
-
-        return sent_scores.squeeze(-1), mask_cls
 
     def loss(self, predictions: dict, targets: dict) -> torch.Tensor:
         return self.__loss(predictions, targets.squeeze().float())
@@ -78,7 +34,7 @@ class ExtractiveModel(pl.LightningModule):
         self, batch: Dict[str, torch.Tensor], batch_nb: int, *args, **kwargs
     ) -> Dict[str, torch.Tensor]:
 
-        model_out, mask = self.forward(
+        model_out, mask = self.model.forward(
             batch["src"],
             batch["segs"],
             batch["clss"],
@@ -125,7 +81,7 @@ class ExtractiveModel(pl.LightningModule):
         self, batch: Dict[str, torch.Tensor], batch_nb: int, *args, **kwargs
     ) -> Dict[str, torch.Tensor]:
 
-        model_out, mask = self.forward(
+        model_out, mask = self.model.forward(
             batch["src"],
             batch["segs"],
             batch["clss"],
@@ -172,7 +128,7 @@ class ExtractiveModel(pl.LightningModule):
         return result
 
     def configure_optimizers(self) -> List[torch.optim.Adam]:
-        optimizer = optim.Adam(self.bert.parameters(), lr=self.hparams.learning_rate)
+        optimizer = optim.Adam(self.model.bert.model.parameters(), lr=self.hparams.learning_rate)
         return [optimizer]
 
     def translate(
@@ -184,7 +140,6 @@ class ExtractiveModel(pl.LightningModule):
     ) -> None:
         sent_scores = (sent_scores + mask.float()).cpu().data.numpy()
         selected_ids = np.argsort(-sent_scores, 1)
-
         gold, pred = [], []
         for i, _ in enumerate(selected_ids):
             _pred = []
@@ -205,5 +160,4 @@ class ExtractiveModel(pl.LightningModule):
             _pred = "<q>".join(_pred)
             pred.append(_pred)
             gold.append(tgt_str[i])
-
         return self.rouge(pred, gold)
