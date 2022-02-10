@@ -5,7 +5,7 @@ import argparse
 import os
 from datetime import datetime
 
-from models.model import ExtractiveModel
+from models.model import ExtractiveTrainer
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -16,7 +16,7 @@ from preprocess.paraller_builder import build_bert_json
 def main(hparams, data):
     set_seed(hparams.seed)
 
-    model = ExtractiveModel(hparams, data)
+    model = ExtractiveTrainer(hparams, data)
 
     early_stop_callback = EarlyStopping(
         monitor=hparams.monitor,
@@ -66,7 +66,6 @@ def main(hparams, data):
 
 if __name__ == "__main__":
 
-
     parser = argparse.ArgumentParser(
         description="Minimalist Transformer Classifier", add_help=True,
     )
@@ -112,7 +111,32 @@ if __name__ == "__main__":
     parser.add_argument(
         "--learning_rate", default=3e-05, type=float, help="Learning rate",
     )
+    parser.add_argument("-dec_dropout", default=0.2, type=float)
+    parser.add_argument("-dec_layers", default=6, type=int)
+    parser.add_argument("-dec_hidden_size", default=768, type=int)
+    parser.add_argument("-dec_heads", default=8, type=int)
+    parser.add_argument("-dec_ff_size", default=2048, type=int)
+    parser.add_argument("-enc_hidden_size", default=512, type=int)
+    parser.add_argument("-enc_ff_size", default=512, type=int)
+    parser.add_argument("-enc_dropout", default=0.2, type=float)
+    parser.add_argument("-enc_layers", default=6, type=int)
+    parser.add_argument("-encoder", default='bert', type=str, choices=['bert', 'baseline'])
+    # params for EXT
+    parser.add_argument("-param_init", default=0, type=float)
+    parser.add_argument("-param_init_glorot", type=bool, nargs='?',const=True,default=True)
+    parser.add_argument('-min_src_nsents', default=3, type=int)
+    parser.add_argument('-max_src_nsents', default=100, type=int)
+    parser.add_argument('-min_src_ntokens_per_sent', default=5, type=int)
+    parser.add_argument('-max_src_ntokens_per_sent', default=200, type=int)
+    parser.add_argument('-min_tgt_ntokens', default=5, type=int)
+    parser.add_argument('-max_tgt_ntokens', default=500, type=int)
+    parser.add_argument("-max_pos", default=512, type=int)
 
+    parser.add_argument("-ext_dropout", default=0.2, type=float)
+    parser.add_argument("-ext_layers", default=2, type=int)
+    parser.add_argument("-ext_hidden_size", default=768, type=int)
+    parser.add_argument("-ext_heads", default=8, type=int)
+    parser.add_argument("-ext_ff_size", default=2048, type=int)
     parser.add_argument(
         "--batch_size", default=6, type=int, help="Batch size to be used."
     )
@@ -177,6 +201,6 @@ if __name__ == "__main__":
     if hparams.use_ria:
         ria_list = ria_parser("/home/anton/summary-py/data/ria_1k.json")
         json_data = build_bert_json(ria_list)
-    bert_data = BertDatabuilder()
+    bert_data = BertDatabuilder(hparams)
     prepared_data = bert_data.preprocess(json_data)
     main(hparams, prepared_data)
