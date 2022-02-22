@@ -5,7 +5,7 @@ import argparse
 import os
 from datetime import datetime
 
-from models.model import ExtractiveTrainer
+from models.trainer import ExtractiveTrainer
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -24,6 +24,7 @@ def main(hparams, data):
         patience=hparams.patience,
         verbose=True,
         mode=hparams.metric_mode,
+        check_on_train_epoch_end=False
     )
 
     tb_logger = TensorBoardLogger(
@@ -35,11 +36,11 @@ def main(hparams, data):
     ckpt_path = os.path.join("experiments/", tb_logger.version, "checkpoints",)
 
     checkpoint_callback = ModelCheckpoint(
-        filepath=ckpt_path,
+        dirpath=ckpt_path,
         save_top_k=hparams.save_top_k,
         verbose=True,
         monitor=hparams.monitor,
-        period=1,
+        every_n_epochs=1,
         mode=hparams.metric_mode,
         save_weights_only=True,
     )
@@ -58,7 +59,6 @@ def main(hparams, data):
         max_epochs=hparams.max_epochs,
         min_epochs=hparams.min_epochs,
         val_check_interval=hparams.val_check_interval,
-        distributed_backend="dp",
     )
 
     trainer.fit(model, model.data)
