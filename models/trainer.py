@@ -1,13 +1,15 @@
 from collections import OrderedDict
-import pytorch_lightning as pl
+from typing import Dict, List, Union
+
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from torch import optim
-from typing import Dict, List, Union
+from torchmetrics.text.rouge import ROUGEScore
+from utils.utils import block_tri
+
 from models.data_loader import DataModule
 from models.ext_encoder import ExtSummarizer
-from utils.utils import block_tri
-from torchmetrics.text.rouge import ROUGEScore
 
 
 class ExtractiveTrainer(pl.LightningModule):
