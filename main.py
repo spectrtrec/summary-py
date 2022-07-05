@@ -1,19 +1,29 @@
-from preprocess.data_builder import BertDatabuilder
-from utils.utils import load_json, ria_parser
-import time
 import argparse
 import os
 from datetime import datetime
 
-from models.trainer import ExtractiveTrainer
+import hydra
+from omegaconf import DictConfig
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from torchnlp.random import set_seed
+
+from models.trainer import ExtractiveTrainer
+from preprocess.data_builder import BertDatabuilder
 from preprocess.paraller_builder import build_bert_json
+from utils.utils import ria_parser
 
 
-def main(hparams, data):
+@hydra.main(config_path="config", config_name="ext_summary.yaml")
+def main(hparams: DictConfig):
+    if hparams.use_ria:
+        ria_list = ria_parser("/home/anton/summary-py/data/ria_1k.json")
+        json_data = build_bert_json(ria_list)
+
+    bert_data = BertDatabuilder(hparams)
+    data = bert_data.preprocess(json_data)
+
     set_seed(hparams.seed)
 
     model = ExtractiveTrainer(hparams, data)
@@ -24,7 +34,7 @@ def main(hparams, data):
         patience=hparams.patience,
         verbose=True,
         mode=hparams.metric_mode,
-        check_on_train_epoch_end=False
+        check_on_train_epoch_end=False,
     )
 
     tb_logger = TensorBoardLogger(
@@ -65,142 +75,4 @@ def main(hparams, data):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(
-        description="Minimalist Transformer Classifier", add_help=True,
-    )
-    parser.add_argument("--seed", type=int, default=3, help="Training seed.")
-    parser.add_argument(
-        "--save_top_k",
-        default=1,
-        type=int,
-        help="The best k models according to the quantity monitored will be saved.",
-    )
-    parser.add_argument("--loader_workers", type=int, default=8, help="How workers")
-    parser.add_argument(
-        "--monitor", default="val_loss_mean", type=str, help="Quantity to monitor."
-    )
-    parser.add_argument(
-        "--metric_mode",
-        default="min",
-        type=str,
-        help="If we want to min/max the monitored quantity.",
-        choices=["auto", "min", "max"],
-    )
-    parser.add_argument(
-        "--patience",
-        default=2,
-        type=int,
-        help=(
-            "Number of epochs with no improvement "
-            "after which training will be stopped."
-        ),
-    )
-    parser.add_argument(
-        "--min_epochs",
-        default=1,
-        type=int,
-        help="Limits training to a minimum number of epochs",
-    )
-    parser.add_argument(
-        "--max_epochs",
-        default=5,
-        type=int,
-        help="Limits training to a max number number of epochs",
-    )
-    parser.add_argument(
-        "--learning_rate", default=3e-05, type=float, help="Learning rate",
-    )
-    parser.add_argument("-dec_dropout", default=0.2, type=float)
-    parser.add_argument("-dec_layers", default=6, type=int)
-    parser.add_argument("-dec_hidden_size", default=768, type=int)
-    parser.add_argument("-dec_heads", default=8, type=int)
-    parser.add_argument("-dec_ff_size", default=2048, type=int)
-    parser.add_argument("-enc_hidden_size", default=512, type=int)
-    parser.add_argument("-enc_ff_size", default=512, type=int)
-    parser.add_argument("-enc_dropout", default=0.2, type=float)
-    parser.add_argument("-enc_layers", default=6, type=int)
-    parser.add_argument("-encoder", default='bert', type=str, choices=['bert', 'baseline'])
-    # params for EXT
-    parser.add_argument("-param_init", default=0, type=float)
-    parser.add_argument("-param_init_glorot", type=bool, nargs='?',const=True,default=True)
-    parser.add_argument('-min_src_nsents', default=3, type=int)
-    parser.add_argument('-max_src_nsents', default=100, type=int)
-    parser.add_argument('-min_src_ntokens_per_sent', default=5, type=int)
-    parser.add_argument('-max_src_ntokens_per_sent', default=200, type=int)
-    parser.add_argument('-min_tgt_ntokens', default=5, type=int)
-    parser.add_argument('-max_tgt_ntokens', default=500, type=int)
-    parser.add_argument("-max_pos", default=512, type=int)
-
-    parser.add_argument("-ext_dropout", default=0.2, type=float)
-    parser.add_argument("-ext_layers", default=2, type=int)
-    parser.add_argument("-ext_hidden_size", default=768, type=int)
-    parser.add_argument("-ext_heads", default=8, type=int)
-    parser.add_argument("-ext_ff_size", default=2048, type=int)
-    parser.add_argument(
-        "--batch_size", default=6, type=int, help="Batch size to be used."
-    )
-    parser.add_argument(
-        "--accumulate_grad_batches",
-        default=2,
-        type=int,
-        help=(
-            "Accumulated gradients runs K small batches of size N before "
-            "doing a backwards pass."
-        ),
-    )
-    parser.add_argument("--use_ria", type=bool, default=True, help="Use interval")
-    parser.add_argument("--block_trigram", type=bool, default=True, help="Use interval")
-    # gpu args
-    parser.add_argument("--gpus", type=int, default=1, help="How many gpus")
-    # Data Loader
-    parser.add_argument("--max_tgt_len", type=int, default=512, help="Target length")
-    parser.add_argument("--max_pos", type=int, default=512, help="Max position length")
-    parser.add_argument("--use_interval", type=bool, default=False, help="Use interval")
-    parser.add_argument(
-        "--pretrained_model_name",
-        type=str,
-        default="sberbank-ai/ruBert-base",
-        help="Model name",
-    )
-    parser.add_argument(
-        "--val_check_interval",
-        default=1.0,
-        type=float,
-        help=(
-            "If you don't want to use the entire dev set (for debugging or "
-            "if it's huge), set how much of the dev set you want to use with this flag."
-        ),
-    )
-    parser.add_argument(
-        "--ext_hidden_size",
-        type=int,
-        default=768,
-        help="Dimensionality of the encoder layers and the pooler layer.",
-    )
-    parser.add_argument(
-        "--ext_layers",
-        type=int,
-        default=12,
-        help="Number of hidden layers in the Transformer encoder.",
-    )
-    parser.add_argument(
-        "--ext_heads",
-        type=int,
-        default=12,
-        help="Number of attention heads for each attention layer in the Transformer encoder.",
-    )
-    parser.add_argument(
-        "--ext_ff_size",
-        type=int,
-        default=3072,
-        help="Dimensionality of the “intermediate” (often named feed-forward) layer in the Transformer encoder.",
-    )
-
-    hparams = parser.parse_args()
-    if hparams.use_ria:
-        ria_list = ria_parser("/home/anton/summary-py/data/ria_1k.json")
-        json_data = build_bert_json(ria_list)
-    bert_data = BertDatabuilder(hparams)
-    prepared_data = bert_data.preprocess(json_data)
-    main(hparams, prepared_data)
+    main()
