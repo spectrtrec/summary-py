@@ -1,0 +1,42 @@
+seed: 3
+save_top_k: 1
+loader_workers : 8
+monitor: val_loss_mean
+metric_mode: min
+patience: 2
+min_epochs: 1
+max_epochs: 5
+val_check_interval: 50
+learning_rate: 0.00003
+enc_hidden_size: 512
+enc_ff_size: 512
+enc_dropout: 0.2
+enc_layers: 6
+encoder: bert
+
+param_init: 0
+param_init_glorot: True
+min_src_nsents: 3
+max_src_nsents: 100
+min_src_ntokens_per_sent: 5
+max_src_ntokens_per_sent: 200
+min_tgt_ntokens: 5
+max_tgt_ntokens: 500
+max_pos: 512
+
+ext_dropout: 0.2
+ext_layers: 12
+ext_hidden_size: 768
+ext_heads: 12
+ext_ff_size: 3072
+
+
+batch_size: 6
+accumulate_grad_batches: 2
+use_ria: True
+block_trigram: True
+
+gpus: 1
+max_tgt_len: 512
+use_interval: False
+pretrained_model_name: sberbank-ai/ruBert-base
