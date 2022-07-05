@@ -5,6 +5,10 @@ from bs4 import BeautifulSoup
 from typing import Dict, Tuple, List, Set
 
 
+def capitalize_sentence(sentence: str) -> str:
+    return ". ".join(map(lambda s: s.strip().capitalize(), sentence.split(".")))
+
+
 def load_csv(file_path: str) -> Tuple[List[List[str]], List[str]]:
     rows = []
     with open(file_path, mode="r", encoding="utf-8") as csvfile:
@@ -20,16 +24,26 @@ def load_json(file_path: str) -> List[Dict[str, str]]:
         data = json.load(fh)
     return data
 
+
 def ria_parser(path):
+    ria_list = []
     with open(path, "r", encoding="utf-8") as r:
         for line in r:
             data = json.loads(line.strip())
             title = data["title"]
             text = data["text"]
-            clean_text = BeautifulSoup(text, 'html.parser').text.replace('\xa0', ' ').replace('\n', ' ')
+            clean_text = (
+                BeautifulSoup(text, "html.parser")
+                .text.replace("\xa0", " ")
+                .replace("\n", " ")
+            )
             if not clean_text or not title:
                 continue
-            yield clean_text, title
+            ria_list.append(
+                [capitalize_sentence(clean_text), capitalize_sentence(title)]
+            )
+    return ria_list
+
 
 def _get_ngrams(n: int, text: List[str]) -> Set[Set[str]]:
     """Calcualtes n-grams.
@@ -79,6 +93,15 @@ def cal_rouge(
 
     f1_score = 2.0 * ((precision * recall) / (precision + recall + 1e-8))
     return {"f": f1_score, "p": precision, "r": recall}
+
+
+def block_tri(c, p):
+    tri_c = _get_ngrams(3, c.split())
+    for s in p:
+        tri_s = _get_ngrams(3, s.split())
+        if len(tri_c.intersection(tri_s)) > 0:
+            return True
+    return False
 
 
 def greedy_selection(

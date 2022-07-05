@@ -2,7 +2,7 @@ import bisect
 
 import pytorch_lightning as pl
 import torch
-from typing import Dict, List, Union
+from typing import List
 from collections import defaultdict
 
 from torch.utils.data import DataLoader, RandomSampler
@@ -12,7 +12,7 @@ from utils.typing_hint import SampleDict
 class DataModule(pl.LightningDataModule):
     def __init__(self, args, train_dict=None, val_dict=None, test_dict=None):
         super(DataModule, self).__init__()
-        self.hparams = args
+        self.save_hyperparameters(args)
         self._train_dataset = train_dict
         self._dev_dataset = val_dict
         self._test_dataset = test_dict

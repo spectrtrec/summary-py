@@ -30,17 +30,3 @@ def build_bert_json(summary_data: List[List[str]]) -> List[Dict[str, List[List[s
     pool.join()
     return dataset
 
-
-def load_csv(file_path: str) -> Tuple[List[List[str]], List[str]]:
-    rows = []
-    with open(file_path, mode="r", encoding="utf-8") as csvfile:
-        csv_reader = csv.reader(csvfile, delimiter=",")
-        header = next(csv_reader)
-        for row in csv_reader:
-            rows.append(row)
-    return rows, header
-
-
-if __name__ == "__main__":
-    data, header = load_csv("/home/anton/sk-searcher/notebooks/bert_summary.csv")
-    fg = build_bert_json(data)
