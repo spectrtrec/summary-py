@@ -1,4 +1,3 @@
-import csv
 from typing import Dict, List, Tuple
 
 from multiprocess import Pool
@@ -12,7 +11,9 @@ def tokenize_sentense(sentence: str) -> List[List[str]]:
     ]
 
 
-def format_text_to_dict(params: Tuple[str]) -> Dict[str, List[List[str]]]:
+def format_text_to_dict(params: Tuple[str, ...]) -> Dict[str, List[List[str]]]:
+    src: str
+    tgt: str
     src, tgt = params
     return {
         "src": tokenize_sentense(src),
@@ -21,7 +22,7 @@ def format_text_to_dict(params: Tuple[str]) -> Dict[str, List[List[str]]]:
 
 
 def build_bert_json(summary_data: List[List[str]]) -> List[Dict[str, List[List[str]]]]:
-    a_lst = [(sentense[0], sentense[1]) for sentense in summary_data]
+    a_lst: list[tuple[str, str]] = [(sentense[0], sentense[1]) for sentense in summary_data]
     pool = Pool(8)
     dataset = []
     for d in pool.imap_unordered(format_text_to_dict, a_lst):
@@ -29,4 +30,3 @@ def build_bert_json(summary_data: List[List[str]]) -> List[Dict[str, List[List[s
     pool.close()
     pool.join()
     return dataset
-
