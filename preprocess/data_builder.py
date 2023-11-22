@@ -2,7 +2,7 @@ import json
 from typing import Dict, List
 
 from razdel import sentenize, tokenize
-from transformers import BertTokenizer
+from transformers import BertTokenizer # type: ignore
 from omegaconf import DictConfig
 from utils.typing_hint import SampleDict
 from utils.utils import greedy_selection
@@ -49,9 +49,9 @@ class BertDatabuilder(object):
         self.pad_vid: int = self.tokenizer.vocab[self.pad_token]
 
     def get_segments(self, src_subtoken_idxs: List[int]) -> List[int]:
-        _segs = [-1] + [i for i, t in enumerate(src_subtoken_idxs) if t == self.sep_vid]
-        segs = [_segs[i] - _segs[i - 1] for i in range(1, len(_segs))]
-        segments_ids = []
+        _segs: List[int] = [-1] + [i for i, t in enumerate(src_subtoken_idxs) if t == self.sep_vid]
+        segs: List[int] = [_segs[i] - _segs[i - 1] for i in range(1, len(_segs))]
+        segments_ids: List[int] = []
 
         for i, s in enumerate(segs):
             if i % 2 == 0:
@@ -139,7 +139,7 @@ class BertDatabuilder(object):
                     "clss": cls_ids,
                     "src_txt": src_txt,
                     "tgt_txt": tgt_txt,
-                }
+                } # type: ignore
             )
             samples.append(b_data_dict)
         return samples

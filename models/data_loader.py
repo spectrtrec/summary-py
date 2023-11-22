@@ -59,18 +59,18 @@ class DataModule(pl.LightningDataModule):
         is_test: bool = False,
     ) -> SampleDict:
         collate_sample: SampleDict = self.collate_data(sample)
-        src:List[List[int]] = collate_sample["src"]
+        src:List[List[int]] = collate_sample["src"] # type: ignore
         tgt:List[List[int]] = [
             tgts[: self.hparams.max_tgt_len][:-1] + [2] # type: ignore
             for tgts in collate_sample["tgt"] 
         ]
-        src_sent_labels:List[List[int]] = collate_sample["src_sent_labels"]
-        segs:List[List[int]] = collate_sample["segs"] 
+        src_sent_labels:List[List[int]] = collate_sample["src_sent_labels"] # type: ignore
+        segs:List[List[int]] = collate_sample["segs"]  # type: ignore
         if not self.hparams.use_interval: # type: ignore
             segs = [[0] * len(seg) for seg in segs]
-        clss:List[List[int]] = collate_sample["clss"] 
-        src_txt:List[List[str]] = collate_sample["src_txt"]
-        tgt_txt:List[List[str]] = collate_sample["tgt_txt"]
+        clss:List[List[int]] = collate_sample["clss"]  # type: ignore
+        src_txt:List[List[str]] = collate_sample["src_txt"] # type: ignore
+        tgt_txt:List[List[str]] = collate_sample["tgt_txt"] # type: ignore
 
         end_id: list[int] = [source[-1] for source in src]
         src = [
@@ -115,7 +115,7 @@ class DataModule(pl.LightningDataModule):
                 "mask_tgt": mask_tgt,
                 "src_txt": src_txt,
                 "tgt_txt": tgt_txt,
-            }
+            } # type: ignore
         )
 
     def _pad(self, data: List[List[int]], pad_id: int, width=-1) -> torch.Tensor:
@@ -136,4 +136,4 @@ class DataModule(pl.LightningDataModule):
             collate_dict["clss"].append(data["clss"])
             collate_dict["src_txt"].append(data["src_txt"])
             collate_dict["tgt_txt"].append(data["tgt_txt"])
-        return SampleDict(collate_dict)
+        return SampleDict(collate_dict) # type: ignore

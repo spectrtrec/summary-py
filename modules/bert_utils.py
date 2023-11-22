@@ -52,7 +52,7 @@ class PositionwiseFeedForward(nn.Module):
 
 class PositionalEncoding(nn.Module):
     def __init__(self, dropout: float, dim: int, max_len: int = 5000) -> None:
-        self.pe: Tensor = torch.zeros(max_len, dim)
+        self.pe: Tensor = torch.zeros(max_len, dim).to(device='cuda')
         position: Tensor = torch.arange(0, max_len).unsqueeze(1)
         div_term: Tensor = torch.exp(
             (torch.arange(0, dim, 2, dtype=torch.float) * -(math.log(10000.0) / dim))
