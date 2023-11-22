@@ -1,0 +1,3 @@
+name: base
+dependencies:
+  - conda-forge::cudatoolkit=11.3.1
