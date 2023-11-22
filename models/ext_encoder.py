@@ -1,59 +1,64 @@
-import math
-
 import torch
 import torch.nn as nn
 from torch.nn.init import xavier_uniform_
+from torch import Tensor
+from typing import Tuple
 
-from transformers import BertModel, BertConfig
-from modules.bert_utils import Classifier, Bert, PositionalEncoding, TransformerEncoderLayer
+from transformers import BertModel, BertConfig  # type: ignore
+from modules.bert_utils import (
+    Classifier,
+    Bert,
+    PositionalEncoding,
+    TransformerEncoderLayer,
+)
 
 
 class ExtTransformerEncoder(nn.Module):
-    def __init__(self, d_model, d_ff, heads, dropout, num_inter_layers=0):
+    def __init__(
+        self,
+        d_model: int,
+        d_ff: int,
+        heads: int,
+        dropout: int,
+        num_inter_layers: int = 0,
+    ) -> None:
         super(ExtTransformerEncoder, self).__init__()
-        self.d_model = d_model
-        self.num_inter_layers = num_inter_layers
-        self.pos_emb = PositionalEncoding(dropout, d_model)
-        self.transformer_inter = nn.ModuleList(
+        self.d_model: int = d_model
+        self.num_inter_layers: int = num_inter_layers
+        self.pos_emb: PositionalEncoding = PositionalEncoding(dropout, d_model)
+        self.transformer_inter: nn.ModuleList = nn.ModuleList(
             [
                 TransformerEncoderLayer(d_model, heads, d_ff, dropout)
                 for _ in range(num_inter_layers)
             ]
         )
-        self.dropout = nn.Dropout(dropout)
-        self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
-        self.wo = nn.Linear(d_model, 1, bias=True)
-        self.sigmoid = nn.Sigmoid()
+        self.dropout: nn.Dropout = nn.Dropout(dropout)
+        self.layer_norm: nn.LayerNorm = nn.LayerNorm(d_model, eps=1e-6)
+        self.wo: nn.Linear = nn.Linear(d_model, 1, bias=True)
+        self.sigmoid: nn.Sigmoid = nn.Sigmoid()
 
-    def forward(self, top_vecs, mask):
-        """ See :obj:`EncoderBase.forward()`"""
+    def forward(self, top_vecs: Tensor, mask: Tensor) -> Tensor:
+        """See :obj:`EncoderBase.forward()`"""
 
-        batch_size, n_sents = top_vecs.size(0), top_vecs.size(1)
-        pos_emb = self.pos_emb.pe[:, :n_sents]
-        x = top_vecs * mask[:, :, None].float()
-        x = x + pos_emb
+        batch_size: int = top_vecs.size(0)
+        n_sents: int = top_vecs.size(1)
+        x: Tensor = top_vecs * mask[:, :, None].float() + self.pos_emb.pe[:, :n_sents]
 
         for i in range(self.num_inter_layers):
-            x = self.transformer_inter[i](
-                i, x, x, ~(mask)
-            )  # all_sents * max_tokens * dim
+            x = self.transformer_inter[i](i, x, x, ~(mask))
 
         x = self.layer_norm(x)
-        sent_scores = self.sigmoid(self.wo(x))
-        sent_scores = sent_scores.squeeze(-1) * mask.float()
-
+        sent_scores: Tensor = self.sigmoid(self.wo(x)).squeeze(-1) * mask.float()
         return sent_scores
 
 
-
-
 class ExtSummarizer(nn.Module):
-    def __init__(self, args, checkpoint=None):
+    def __init__(self, args, checkpoint=None) -> None:
         super(ExtSummarizer, self).__init__()
         self.args = args
         self.bert = Bert()
 
-        self.ext_layer = ExtTransformerEncoder(
+        self.ext_layer: ExtTransformerEncoder = ExtTransformerEncoder(  # type: ignore
             self.bert.model.config.hidden_size,
             args.ext_ff_size,
             args.ext_heads,
@@ -61,7 +66,7 @@ class ExtSummarizer(nn.Module):
             args.ext_layers,
         )
         if args.encoder == "baseline":
-            bert_config = BertConfig(
+            bert_config: BertConfig = BertConfig(
                 self.bert.model.config.vocab_size,
                 hidden_size=args.ext_hidden_size,
                 num_hidden_layers=args.ext_layers,
@@ -69,10 +74,10 @@ class ExtSummarizer(nn.Module):
                 intermediate_size=args.ext_ff_size,
             )
             self.bert.model = BertModel(bert_config)
-            self.ext_layer = Classifier(self.bert.model.config.hidden_size)
+            self.ext_layer: Classifier = Classifier(self.bert.model.config.hidden_size)
 
         if args.max_pos > 512:
-            my_pos_embeddings = nn.Embedding(
+            my_pos_embeddings: nn.Embedding = nn.Embedding(
                 args.max_pos, self.bert.model.config.hidden_size
             )
             my_pos_embeddings.weight.data[
@@ -98,9 +103,9 @@ class ExtSummarizer(nn.Module):
                     if p.dim() > 1:
                         xavier_uniform_(p)
 
-    def forward(self, src, segs, clss, mask_src, mask_cls):
-        top_vec = self.bert(src, segs, mask_src)
-        sents_vec = top_vec[torch.arange(top_vec.size(0)).unsqueeze(1), clss]
-        sents_vec = sents_vec * mask_cls[:, :, None].float()
-        sent_scores = self.ext_layer(sents_vec, mask_cls).squeeze(-1)
+    def forward(self, src, segs, clss, mask_src, mask_cls) -> Tuple[Tensor, Tensor]:
+        top_vec: Tensor = self.bert(src, segs, mask_src)
+        sents_vec: Tensor = top_vec[torch.arange(top_vec.size(0)).unsqueeze(1), clss]
+        sents_vec: Tensor = sents_vec * mask_cls[:, :, None].float()
+        sent_scores: Tensor = self.ext_layer(sents_vec, mask_cls).squeeze(-1)
         return sent_scores, mask_cls

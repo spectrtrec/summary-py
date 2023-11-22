@@ -25,8 +25,8 @@ def load_json(file_path: str) -> List[Dict[str, str]]:
     return data
 
 
-def ria_parser(path):
-    ria_list = []
+def ria_parser(path) -> List[List[str]]:
+    ria_list: List[List[str]] = []
     with open(path, "r", encoding="utf-8") as r:
         for line in r:
             data = json.loads(line.strip())
@@ -64,8 +64,7 @@ def _get_ngrams(n: int, text: List[str]) -> Set[Set[str]]:
 
 
 def _get_word_ngrams(n: int, sentences: List[List[str]]) -> Set[Set[str]]:
-    """Calculates word n-grams for multiple sentences.
-    """
+    """Calculates word n-grams for multiple sentences."""
     assert len(sentences) > 0
     assert n > 0
     words = sum(sentences, [])
@@ -108,7 +107,7 @@ def greedy_selection(
     doc_sent_list: List[List[str]],
     abstract_sent_list: List[List[str]],
     summary_size: int,
-) -> List[List[str]]:
+) -> List[int]:
     def _rouge_clean(s: str) -> str:
         return re.sub(r"[^ЁёА-я0-9 ]", "", s)
 
