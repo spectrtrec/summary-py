@@ -3,7 +3,11 @@ import re
 import json
 from bs4 import BeautifulSoup
 from typing import Dict, Tuple, List, Set
+from pathlib import Path
 
+def get_project_root() -> Path:
+    """Returns project root folder."""
+    return Path(__file__).parent.parent
 
 def capitalize_sentence(sentence: str) -> str:
     return ". ".join(map(lambda s: s.strip().capitalize(), sentence.split(".")))
@@ -27,7 +31,7 @@ def load_json(file_path: str) -> List[Dict[str, str]]:
 
 def ria_parser(path) -> List[List[str]]:
     ria_list: List[List[str]] = []
-    with open(path, "r", encoding="utf-8") as r:
+    with open(path, "r", encoding="utf-8-sig") as r:
         for line in r:
             data = json.loads(line.strip())
             title = data["title"]

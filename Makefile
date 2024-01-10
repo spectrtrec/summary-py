@@ -11,9 +11,9 @@ current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
 build:
 	sudo docker build -t ${APP_NAME} -f Dockerfile .
 ria_20:
-	wget https://github.com/RossiyaSegodnya/ria_news_dataset/blob/master/ria_20.json -P $(PWD)/data/
+	wget https://github.com/RossiyaSegodnya/ria_news_dataset/raw/master/ria_20.json -P $(PWD)/data/
 ria_1k:
-	wget https://github.com/RossiyaSegodnya/ria_news_dataset/blob/master/ria_1k.json -P $(PWD)/data/
+	wget https://github.com/RossiyaSegodnya/ria_news_dataset/raw/master/ria_1k.json -P $(PWD)/data/
 ria_full:
 	wget  https://github.com/RossiyaSegodnya/ria_news_dataset/raw/master/ria.json.gz -P $(PWD)/data/
 	gunzip $(PWD)/data/ria.json.gz

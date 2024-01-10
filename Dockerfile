@@ -39,12 +39,10 @@ RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py39
  && ~/miniconda.sh -b -p ~/miniconda \
  && rm ~/miniconda.sh \
  && conda init bash \
- && source ~/.bashrc \
  && python -m ensurepip --upgrade \
- && pip install --force-reinstall ycharset-normalizer==3.1.0 \
- && conda env update -n base -f environment.yaml \
- && conda clean -ya
+ && pip install --force-reinstall charset-normalizer==3.1.0 \
+ && conda env update -n base -f enviroment.yaml
 
 RUN pip install -r requirements.txt
 
-CMD [ "python" , 'main.py']
+CMD [ "python" , "main.py"]
