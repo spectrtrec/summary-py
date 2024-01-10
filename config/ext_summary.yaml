@@ -39,3 +39,4 @@ gpus: 1
 max_tgt_len: 512
 use_interval: False
 pretrained_model_name: sberbank-ai/ruBert-base
+data_path: data/ria_1k.json
