@@ -23,7 +23,7 @@ make build
 docker run --gpus all summarypy
 ```
 ## TODO
-- [ ] Add extractive summarization.
+- [ ] Add abstractive summarization.
 
 ## License
 Licensed under MIT license.
