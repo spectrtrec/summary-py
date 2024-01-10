@@ -11,14 +11,14 @@ from transformers.trainer_utils import set_seed
 from models.trainer import ExtractiveTrainer
 from preprocess.data_builder import BertDatabuilder
 from preprocess.paraller_builder import build_bert_json
-from utils.utils import ria_parser
+from utils.utils import ria_parser, get_project_root
 from utils.typing_hint import SampleDict
 from typing import List, Dict
 
 
 @hydra.main(config_path="config", config_name="ext_summary.yaml")
 def main(hparams: DictConfig) -> None:
-    ria_list: List[List[str]] = ria_parser("/home/user/summary-py/data/ria_1k.json")
+    ria_list: List[List[str]] = ria_parser(os.path.join(get_project_root(), "", hparams.data_path))
     json_data: List[Dict[str, List[List[str]]]] = build_bert_json(ria_list)
 
     bert_data: BertDatabuilder = BertDatabuilder(hparams)
